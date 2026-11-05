@@ -367,11 +367,11 @@ The demonstration will present:
 
 ## 14. Team Contributions
 
-**Team Member 1 – [Insert name]**
+**Elizabeth Baker – [25844477]**
 
 [Describe the actual individual contributions, including implementation, testing, analysis, documentation and integration.]
 
-**Team Member 2 – [Insert name]**
+**Marwa Rahmani – [25303292]**
 
 [Describe the actual individual contributions, including implementation, testing, analysis, documentation and integration.]
 
@@ -388,4 +388,3 @@ All generated suggestions and project outputs were reviewed and checked by the p
 - OpenCV documentation – camera calibration, image processing and hand-eye calibration.
 - MuJoCo documentation – physics simulation and robot modelling.
 - Relevant UTS 41014 lecture materials and laboratory resources.
-- External libraries, tutorials, robot models and other resources adapted for this project should be acknowledged here.

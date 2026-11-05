@@ -381,12 +381,12 @@ Both team members collaborated on integrating the vision, estimation and control
 
 ## 15. Generative AI Declaration
 
-Generative AI tools were used as supporting resources during project development. These tools assisted with [insert the actual tools and purposes, such as code explanation, debugging, troubleshooting, documentation and report editing].
+ChatGPT was used as a supporting tool during project development. It assisted with explaining programming concepts, troubleshooting Python errors, interpreting technical results, improving code documentation and organising the final project report and GitHub README.
 
-All generated suggestions and project outputs were reviewed and checked by the project team. The team is responsible for verifying the submitted implementation, experimental results and documentation.
+The project team reviewed and tested the implementation and checked the reported experimental results. The team retains responsibility for the accuracy, functionality and integrity of the submitted work.
 
 ## 16. References and Acknowledgements
 
 - OpenCV documentation – camera calibration, image processing and hand-eye calibration.
 - MuJoCo documentation – physics simulation and robot modelling.
-- Relevant UTS 41014 lecture materials and laboratory resources.
+- University of Technology Sydney. (2026). 41014 Industrial Robotics: Subject learning materials and assessment resources.

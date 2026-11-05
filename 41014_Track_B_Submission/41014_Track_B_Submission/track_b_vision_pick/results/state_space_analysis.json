@@ -1,0 +1,12 @@
+{
+  "ctrb_rank_design": 12,
+  "obsv_rank_design": 12,
+  "ctrb_rank_full": 12,
+  "obsv_rank_full": 12,
+  "n_states": 12,
+  "ctrb_cond": 44.48499420633094,
+  "obsv_cond": 130.35954192024596,
+  "max_abs_closed_loop_eig": 0.9752580687018527,
+  "max_abs_observer_eig": 0.7608577276347085,
+  "max_abs_open_loop_full_eig": 1.03245582469526
+}

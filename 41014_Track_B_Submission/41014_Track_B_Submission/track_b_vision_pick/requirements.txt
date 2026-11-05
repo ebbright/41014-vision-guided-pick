@@ -1,0 +1,5 @@
+mujoco
+numpy
+scipy
+matplotlib
+opencv-python-headless==4.10.0.84

@@ -1,0 +1,444 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+
+body {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 10.5pt;
+    line-height: 1.32;
+    color: #111;
+    margin: 20px 32px;
+}
+
+h1 {
+    font-size: 19pt;
+    margin-bottom: 4px;
+}
+
+h2 {
+    font-size: 13pt;
+    margin-top: 15px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #bbb;
+    padding-bottom: 2px;
+}
+
+h3 {
+    font-size: 11pt;
+    margin-bottom: 2px;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 6px 0 9px 0;
+    font-size: 8.2pt;
+    width: 100%;
+    table-layout: fixed;
+}
+
+th, td {
+    border: 1px solid #999;
+    padding: 3px 4px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: break-word;
+}
+
+th {
+    background: #eee;
+}
+
+code {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 8.5pt;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 5px auto;
+}
+
+.small {
+    font-size: 8.5pt;
+    color: #333;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Track B: Vision-guided pick with a UR3 in MuJoCo</h1>
+
+<p class="small">
+Own project. Position-based visual servoing (PBVS) with a state-space
+LQG joint controller and a Kalman observer. Source:
+<code>track_b_vision_pick/</code>. All numbers below are generated
+from <code>results/</code>.
+</p>
+
+
+<h2>1. Summary</h2>
+
+<p>
+A UR3 (6 DOF, nominal DH kinematics) with a parallel-jaw gripper
+and a wrist-mounted RGB-D camera picks a red 4 cm cube from a
+tabletop. The cube position, yaw, mass and friction are randomised
+in every trial. The system calibrates the camera (intrinsics and
+hand-eye), localises the cube from depth, and approaches it with
+a two-stage PBVS. The joint controller is an LQG controller that
+acts on the estimated state. Joint velocities and the cube's
+position and velocity are unmeasured, and each is reconstructed
+by a Kalman filter.
+</p>
+
+<p>
+In the nominal condition the grasp-and-lift succeeded in
+<b>50 of 50</b> trials.
+The median cube-centre error at the grasp plan was
+<b>0.59 mm</b>
+(95th percentile 1.19 mm),
+and the median yaw error was
+0.08 degrees.
+Across the four stress conditions (Section 7), every trial succeeded.
+</p>
+
+
+<h2>2. Requirements mapping</h2>
+
+<table>
+<tr>
+<th>Requirement</th>
+<th>Implementation</th>
+</tr>
+
+<tr>
+<td>Camera calibration</td>
+<td>
+40 checkerboard views were collected, with 36 retained after
+outlier rejection. Intrinsics by <code>calibrateCamera</code>
+(reprojection RMS 0.48 px).
+Hand-eye by <code>calibrateHandEye</code> (Park), then refined
+by minimising corner reprojection error jointly over the mount,
+the board pose and the intrinsics.
+</td>
+</tr>
+
+<tr>
+<td>Depth-based localisation</td>
+<td>
+HSV segmentation; back-projection of the depth image with
+calibrated K; transform to the base frame through encoder FK
+and the hand-eye; top-face extraction; yaw from the top-face
+minimum-area rectangle.
+</td>
+</tr>
+
+<tr>
+<td>Approach planning</td>
+<td>
+PBVS: pre-grasp from the estimate, re-observation at the
+pre-grasp view with a correction, descent, closing, grasp check,
+lift.
+</td>
+</tr>
+
+<tr>
+<td>State-space model, controllability, observability</td>
+<td>
+12-state arm model (positions, velocities). Ranks
+12/12 and
+12/12 for the design model;
+12/12 and
+12/12 for the full torque
+linearisation.
+</td>
+</tr>
+
+<tr>
+<td>Calibrated exteroceptive sensor</td>
+<td>
+Wrist RGB-D camera, calibrated intrinsics and hand-eye.
+</td>
+</tr>
+
+<tr>
+<td>Kalman filter / observer</td>
+<td>
+Joint observer (steady-state Kalman filter on encoder positions)
+and a constant-velocity Kalman filter on the cube position.
+</td>
+</tr>
+
+<tr>
+<td>Feedback controller on estimated state</td>
+<td>
+Computed torque plus LQR on <code>x_hat</code>,
+gain-scheduled per motion segment.
+</td>
+</tr>
+
+<tr>
+<td>Robustness to randomised position</td>
+<td>
+Cube (x, y, yaw, mass, friction) randomised in each trial;
+four stress conditions.
+</td>
+</tr>
+</table>
+
+
+<h2>3. System and state-space model</h2>
+
+<p>
+The arm model is generated from the standard UR3 DH parameters
+(d<sub>1</sub>=0.1519, a<sub>2</sub>=-0.24365,
+a<sub>3</sub>=-0.21325, d<sub>4</sub>=0.11235,
+d<sub>5</sub>=0.08535, d<sub>6</sub>=0.0819 m),
+with approximate link masses. MuJoCo's forward kinematics match
+the DH model to numerical precision. The UR3 is not in MuJoCo
+Menagerie (only the UR5e is), so the links are capsules,
+not the UR meshes.
+</p>
+
+<p>
+Plant state <code>x = [q; qdot]</code> (12 states), input
+<code>nu</code> (joint acceleration command), measurement
+<code>y = q</code> (encoders). Computed torque cancels the
+Coriolis and gravity terms, so the design model is
+<code>x' = A x + B nu</code>, with
+<code>A = [[0, I], [0, -M^-1 D]]</code> and
+<code>B = [[0], [I]]</code>. M is the mass matrix at the
+operating point and D the joint damping. This is discretised
+with a zero-order hold at Ts = 10 ms (the course's Week 5 method).
+The full torque-input linearisation, including the gravity
+gradient, is also computed from MuJoCo for the analysis.
+</p>
+
+<p>
+Results at the scan configuration: both models are controllable
+and observable with the encoder output. The open-loop full
+linearisation has one unstable pole, with |lambda|max =
+1.032, from gravity.
+The closed-loop poles lie at |z| &lt;=
+0.975 and the observer poles
+at |z| &lt;= 0.761.
+The controllability and observability condition numbers are
+44.5 and 130.4.
+</p>
+
+<img src="C:\Users\egbbr\Downloads\41014-vision-guided-pick-main\41014-vision-guided-pick-main\track_b_vision_pick\results\figures\fig_poles.png" style="width:55%">
+
+
+<h2>4. Calibration</h2>
+
+<p>
+The checkerboard (9 x 6 inner corners, 2 cm squares) sits on the
+table. Arm poses are sampled around it with tilt (&plusmn;0.3 rad)
+and distance (0.22-0.42 m). Encoder readings are averaged over
+50 samples per pose. Views whose error is an outlier are rejected.
+Against the simulator's known values (used only for reporting):
+focal length 582.3 px vs
+579.4 px (true), principal point
+(321.8, 238.3) px vs
+(320.0, 240) px, and hand-eye translation
+error 2.05 mm with rotation
+error 0.22 degrees.
+</p>
+
+
+<h2>5. Estimation and control</h2>
+
+<h3>Joint observer (unmeasured velocities)</h3>
+
+<p>
+The encoders measure only positions. A steady-state Kalman
+filter (Q from a 3 rad/s&sup2; acceleration disturbance,
+R from a 2 mrad encoder noise) reconstructs the joint
+velocities, which the controller uses for feedback.
+</p>
+
+<p>
+The Kalman observer combines encoder position measurements
+with the mathematical state-space model to estimate the robot's
+unmeasured joint velocities. This allows the controller to use
+both position and velocity estimates when calculating its
+control input. The showcase graph in Section 7 compares the
+true joint velocities (solid lines) with the Kalman estimates
+(dotted lines), demonstrating how closely the observer follows
+the actual motion.
+</p>
+
+<h3>Target Kalman filter</h3>
+
+<p>
+The state is the cube centre and velocity. Each camera view is
+one position measurement, with a covariance that grows with
+the square of the range and a 2.5 mm lateral floor. The velocity
+is unmeasured. The filter is initialised from the first view and
+fuses the later views at the scan and pre-grasp poses.
+</p>
+
+<h3>Controller</h3>
+
+<p>
+LQR with Q = diag(400 I, 4 I) and R = 0.04 I, designed on the
+Ts = 10 ms model at each motion segment's start configuration
+(gain scheduling). Command:
+<code>tau = bias(x_hat) + M(q_op) * (q_ref_dd +
+M^-1 D q_ref_d - K (x_hat - x_ref))</code>.
+Joint trajectories are quintic (minimum-jerk) between IK waypoints.
+</p>
+
+
+<h2>6. Pick procedure</h2>
+
+<ol>
+<li>
+Move from the rest pose to the scan pose (tool pointing down,
+tool-centre point 0.25 m above the robot base). Capture two views.
+</li>
+
+<li>
+Plan the pre-grasp 12 cm above the estimated cube centre.
+The gripper yaw is the cube yaw mod 90 degrees, closest to
+the current wrist.
+</li>
+
+<li>
+PBVS correction: at the pre-grasp, capture two more views.
+If the refined grasp plan moved more than 4 mrad in joint space,
+re-plan and move.
+</li>
+
+<li>
+Descend to the cube centre, close the gripper, and check the
+finger closure (a grasp gives about 10 mm; no cube gives 20 mm).
+</li>
+
+<li>
+Lift 15 cm above the centre. Success is grasp detected and
+the cube above table by more than 5 cm (scored from truth
+after the trial).
+</li>
+</ol>
+
+<p>
+The approach is hierarchical PBVS. Vision feeds back at the
+pre-grasp view only, not continuously during the descent.
+IBVS was not used.
+</p>
+
+
+<h2>7. Experiments</h2>
+
+<p>
+Each trial draws the cube position uniformly over x in
+[0.24, 0.38] m and y in [-0.14, 0.14] m, with yaw in
+&plusmn;45&deg;. Mass and friction are drawn from the ranges listed
+under each condition. Sensor noise: depth noise standard
+deviation 1 mm + 3 mm &times; Z&sup2; (Z in metres);
+encoders 2 mrad per sample. Ground truth is used only after
+each trial, for scoring.
+</p>
+
+<table>
+
+<tr>
+<th>Condition</th>
+<th>Success</th>
+<th>Success % [95% CI]</th>
+<th>Cube xy error, median / p95 (mm)</th>
+<th>Yaw error, median / p95 (deg)</th>
+<th>Joint tracking error RMS, median (deg)</th>
+<th>Velocity-observer RMS, median (rad/s)</th>
+</tr>
+
+<tr><td>nominal</td><td>50/50</td><td>100.0% [92.9, 100.0]</td><td>0.59 / 1.19</td><td>0.08 / 0.21</td><td>0.294</td><td>0.026</td></tr><tr><td>depth_noise_x3</td><td>20/20</td><td>100.0% [83.9, 100.0]</td><td>1.84 / 2.89</td><td>0.13 / 0.35</td><td>0.241</td><td>0.023</td></tr><tr><td>encoder_noise_x4</td><td>20/20</td><td>100.0% [83.9, 100.0]</td><td>2.40 / 4.14</td><td>0.12 / 0.27</td><td>0.314</td><td>0.077</td></tr><tr><td>heavy_slippery</td><td>20/20</td><td>100.0% [83.9, 100.0]</td><td>0.54 / 1.24</td><td>0.09 / 0.26</td><td>0.338</td><td>0.027</td></tr><tr><td>intrinsics_3pct_error</td><td>20/20</td><td>100.0% [83.9, 100.0]</td><td>2.38 / 3.17</td><td>0.11 / 0.23</td><td>0.291</td><td>0.026</td></tr>
+
+</table>
+
+<p class="small">
+Conditions: nominal (mass 30-100 g, friction 0.7-1.2, 50 trials);
+depth noise x3 (20 trials); encoder noise x4, i.e. 8 mrad per
+sample (20 trials); heavy and slippery (mass 100-200 g,
+friction 0.35-0.5, 20 trials); 3% focal-length error in the
+controller's intrinsics (20 trials).
+
+Success is grasp verified by finger closure and the cube lifted
+more than 5 cm; the 95% interval is a Wilson interval.
+
+Tracking RMS represents the root-mean-square difference between
+the reference and actual joint angles during the robot's motion.
+It is reported in degrees, with the table showing the median
+across trials.
+
+Although all 130 simulated trials were successful, this does
+not guarantee equivalent performance on physical hardware.
+Real-world performance would require further testing with actual
+sensors, calibration errors, mechanical dynamics and
+environmental disturbances.
+</p>
+
+<img src="C:\Users\egbbr\Downloads\41014-vision-guided-pick-main\41014-vision-guided-pick-main\track_b_vision_pick\results\figures\fig_success_rates.png"
+     style="width:78%;">
+
+<img src="C:\Users\egbbr\Downloads\41014-vision-guided-pick-main\41014-vision-guided-pick-main\track_b_vision_pick\results\figures\fig_error_histograms.png"
+     style="width:85%;">
+
+<img src="C:\Users\egbbr\Downloads\41014-vision-guided-pick-main\41014-vision-guided-pick-main\track_b_vision_pick\results\figures\fig_showcase_tracking.png"
+     style="width:82%;">
+
+
+<h2>8. Discussion and limitations</h2>
+
+<ul>
+
+<li>
+The UR3 is modelled from DH parameters and approximate masses,
+with capsule geometry. The gripper is a simplified parallel jaw.
+Results should transfer to a real UR3 only after identification
+of its mass and friction parameters.
+</li>
+
+<li>
+The camera is an ideal pinhole model with no lens distortion
+and no rolling shutter, and the depth noise is a simple
+range-dependent model. Real depth sensors also have multipath
+and edge artefacts.
+</li>
+
+<li>
+The hand-eye and intrinsic calibrations are estimated from
+simulated images. The 3% focal-length condition in Section 7
+tests the sensitivity to calibration error.
+</li>
+
+<li>
+The grasp is a top-down pinch on a cube of known size.
+The cube's size is a model assumption: the estimator sets
+the centre to the top-face height minus the known half-size.
+</li>
+
+<li>
+Gain scheduling is done once per segment, so the observer
+and controller are linear only locally. There is no integral
+action, and the steady-state error is handled by the
+computed-torque feedforward.
+</li>
+
+<li>
+The vision-based correction is applied at the pre-grasp view
+only. A continuous image-based loop during the descent would
+be the natural next step.
+</li>
+
+</ul>
+
+</body>
+</html>

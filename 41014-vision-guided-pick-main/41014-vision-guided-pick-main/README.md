@@ -1,1 +1,0 @@
-# 41014-vision-guided-pick

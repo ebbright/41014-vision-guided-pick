@@ -369,13 +369,15 @@ The demonstration will present:
 
 **Elizabeth Baker – [25844477]**
 
-[Describe the actual individual contributions, including implementation, testing, analysis, documentation and integration.]
+Responsible for the vision and perception components of the project. Contributions included developing the camera calibration process, implementing intrinsic and hand-eye calibration, and developing the object detection and depth-based localisation methods. Additional work involved transforming camera observations into the robot base coordinate frame, estimating the cube's position and orientation, and contributing to the integration and testing of the vision-guided picking pipeline.
 
 **Marwa Rahmani – [25303292]**
 
-[Describe the actual individual contributions, including implementation, testing, analysis, documentation and integration.]
+Responsible for the robot modelling, state estimation and feedback control components of the project. Contributions included developing the UR3 state-space model, performing controllability and observability analysis, implementing the Kalman observer for joint-state estimation, and developing the LQR feedback controller with computed-torque compensation. Additional work involved evaluating controller performance and contributing to the integration and testing of the complete picking system.
 
-Each contribution should accurately reflect the work completed by the individual.
+**Joint Contributions**
+
+Both team members collaborated on integrating the vision, estimation and control components into the complete UR3 picking pipeline. Joint contributions included debugging, running the 130 experimental trials, analysing quantitative results, evaluating robustness under different operating conditions, preparing the GitHub documentation and producing the final demonstration and project report.
 
 ## 15. Generative AI Declaration
 

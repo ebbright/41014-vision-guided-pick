@@ -391,11 +391,11 @@ The demonstration presents:
 
 ## 14. Team Contributions
 
-### Elizabeth Baker – Vision and Perception
+### Elizabeth Baker (25844477) – Vision and Perception
 
 Responsible for the vision and perception components of the project. Contributions included developing the camera calibration process, implementing intrinsic and hand-eye calibration, and developing the object detection and depth-based localisation methods. Additional work involved transforming camera observations into the robot base coordinate frame, estimating the cube's position and orientation, and contributing to the integration and testing of the vision-guided picking pipeline.
 
-### Marwa Rahmani – Robot Modelling, Estimation and Control
+### Marwa Rahmani (25303292) – Robot Modelling, Estimation and Control
 
 Responsible for the robot modelling, state estimation and feedback control components of the project. Contributions included developing the UR3 state-space model, performing controllability and observability analysis, implementing the Kalman observer for joint-state estimation, and developing the LQR feedback controller with computed-torque compensation. Additional work involved evaluating controller performance and contributing to the integration and testing of the complete picking system.
 

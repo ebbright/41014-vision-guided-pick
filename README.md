@@ -354,7 +354,7 @@ Per-trial sensor noise is drawn from the same seeded random stream to support re
 
 ## 13. Demonstration Video
 
-**Five-minute project demonstration:** [Insert video link here.]
+**Five-minute project demonstration:** [https://youtu.be/N5RoykPslfs]
 
 The demonstration will present:
 

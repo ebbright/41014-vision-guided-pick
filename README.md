@@ -1,16 +1,16 @@
-# Track B: Vision-Guided Pick with a UR3 in MuJoCo
+# Track B – Vision-Guided Robotic Pick Using a UR3
 
 ## 1. Project Overview
 
-This project implements an integrated vision-guided robotic picking system using a six-degree-of-freedom UR3 manipulator in the MuJoCo simulation environment.
+This project implements a vision-guided robotic picking system using a six-degree-of-freedom UR3 manipulator in the MuJoCo simulation environment.
 
 The robot uses a wrist-mounted RGB-D camera to detect and localise a red cube on a tabletop, plan an approach trajectory and execute a grasp-and-lift operation using a parallel-jaw gripper.
 
-The cube position, orientation, mass and friction are randomised between trials. The system is evaluated under different sensor noise conditions and camera calibration errors to assess its robustness.
+The cube's position, orientation, mass and friction are randomised between trials. The system is evaluated under different sensor noise conditions and camera calibration errors to assess its robustness.
 
 The project integrates:
 
-- Robot modelling using Denavit–Hartenberg (DH) parameters.
+- UR3 robot modelling using Denavit–Hartenberg (DH) parameters.
 - Camera intrinsic and hand-eye calibration.
 - HSV-based object detection and depth-based localisation.
 - Forward and inverse kinematics.
@@ -51,15 +51,15 @@ The estimator and controller do not use simulator ground truth. Ground-truth val
 
 | Requirement | Implementation |
 |---|---|
-| Camera calibration | `calibration.py`: intrinsic calibration using `cv2.calibrateCamera`, outlier rejection and hand-eye calibration using `cv2.calibrateHandEye` with the Park method |
-| Depth-based object localisation | `perception.py`: HSV segmentation, depth-image back-projection, top-face extraction, base-frame transformation and yaw estimation |
-| Approach planning (PBVS) | `pick_pipeline.py`: pre-grasp planning, re-observation, visual correction, descent, grasp verification and lifting |
+| Camera calibration | `calibration.py`: intrinsic calibration, outlier rejection and hand-eye calibration |
+| Depth-based object localisation | `perception.py`: HSV segmentation, depth-image back-projection and base-frame transformation |
+| Approach planning (PBVS) | `pick_pipeline.py`: pre-grasp planning, re-observation, visual correction, descent and grasp verification |
 | State-space modelling | `control.py`: MuJoCo-based linearised plant model |
 | Controllability and observability | `control.py`: rank, conditioning and pole-location analysis |
 | State-space joint controller | `control.py`: LQR on the 12-state model, computed-torque compensation and gain scheduling |
 | Observer for unmeasured states | `estimation.py`: steady-state joint Kalman observer and target Kalman filter |
-| Feedback controller on estimated state | `control.py`: `torque()` uses the estimated state `x_hat` rather than simulator ground truth |
-| Robustness evaluation | `run_experiments.py`: randomised cube position, yaw, mass and friction, with four stress conditions |
+| Feedback controller on estimated state | `control.py`: feedback control using the estimated state `x_hat` |
+| Robustness evaluation | `run_experiments.py`: randomised cube properties and four stress conditions |
 
 ## 4. Robot Modelling and State-Space Analysis
 
@@ -228,8 +228,10 @@ The `results/figures/` directory contains the following generated figures:
 |---|---|
 | `fig_success_rates.png` | Success rates across experimental conditions |
 | `fig_error_histograms.png` | Localisation and tracking error distributions |
-| `fig_showcase_tracking.png` | True and estimated joint velocity tracking |
+| `fig_showcase_tracking.png` | Joint angle tracking, velocity estimation, observer error and predicted joint-state uncertainty |
 | `fig_poles.png` | Discrete-time pole analysis |
+
+The joint-state uncertainty plot displays a predicted 95% interval calculated from the observer covariance matrix. It represents model-predicted uncertainty under the assumed statistical model.
 
 ## 9. Limitations and Future Improvements
 
@@ -261,9 +263,11 @@ The main implementation is contained in `track_b_vision_pick/`.
 | `calibration.py` | Camera intrinsic and hand-eye calibration |
 | `perception.py` | Cube segmentation, depth localisation and yaw estimation |
 | `estimation.py` | Joint-state Kalman observer and target Kalman filter |
-| `control.py` | State-space model, controllability and observability analysis, LQG joint controller |
+| `control.py` | State-space model, controllability and observability analysis, LQR joint controller |
 | `pick_pipeline.py` | Integrated pick sequence: scan, observe, pre-grasp, PBVS, grasp and lift |
 | `run_experiments.py` | Calibration and randomised robustness trials |
+| `run_video_demo.py` | Live MuJoCo demonstration of the nominal pick-and-lift task |
+| `run_video_demo_disturbed.py` | Live MuJoCo demonstration with increased depth sensor noise |
 | `make_figures.py` | Generates analysis figures and state-space summary |
 | `make_report.py` | Generates the PDF project report |
 | `results/` | Experimental outputs, calibration results, figures and PDF report |
@@ -292,31 +296,33 @@ python -m pip install mujoco numpy scipy matplotlib opencv-python-headless==4.10
 
 ### 11.3 Run the project
 
-Run these commands from inside the `track_b_vision_pick` directory:
+Run these commands from inside the `track_b_vision_pick` directory.
+
+**Run camera calibration:**
 
 ```powershell
 python -X utf8 calibration.py
 ```
 
-Run the complete experiment:
+**Run the complete experiment:**
 
 ```powershell
 python -X utf8 run_experiments.py
 ```
 
-Run a quick test with three trials per condition:
+**Run a quick test with three trials per condition:**
 
 ```powershell
 python -X utf8 run_experiments.py --quick
 ```
 
-Generate figures and state-space analysis:
+**Generate figures and state-space analysis:**
 
 ```powershell
 python -X utf8 make_figures.py
 ```
 
-Generate the PDF report:
+**Generate the PDF report:**
 
 ```powershell
 python -X utf8 make_report.py
@@ -324,7 +330,23 @@ python -X utf8 make_report.py
 
 PDF generation requires `wkhtmltopdf` to be installed and accessible.
 
-### 11.4 Rendering configuration
+### 11.4 Run the live demonstrations
+
+**Nominal pick-and-lift demonstration:**
+
+```powershell
+python -X utf8 run_video_demo.py
+```
+
+**Disturbed demonstration with increased depth sensor noise:**
+
+```powershell
+python -X utf8 run_video_demo_disturbed.py
+```
+
+Both scripts open an interactive MuJoCo viewer. Keep the viewer open while the robot performs the demonstration. The terminal displays the final grasp and estimation results.
+
+### 11.5 Rendering configuration
 
 Offscreen rendering on Linux uses OSMesa:
 
@@ -354,28 +376,30 @@ Per-trial sensor noise is drawn from the same seeded random stream to support re
 
 ## 13. Demonstration Video
 
-**Five-minute project demonstration:** [https://youtu.be/N5RoykPslfs]
+**Five-minute project demonstration:** [Watch the project demonstration](https://youtu.be/N5RoykPslfs)
 
-The demonstration will present:
+The demonstration presents:
 
 - The UR3 simulation environment and system setup.
 - Camera observations and cube localisation.
 - The complete vision-guided pick-and-lift pipeline.
 - PBVS correction and feedback control.
-- State estimation and true-versus-estimated joint velocity tracking.
-- Performance under a varied or disturbed trial.
+- State estimation and true-versus-estimated joint-state tracking.
+- The predicted state uncertainty interval.
+- Performance under a disturbed depth-sensor trial.
+- Experimental results across all five test conditions.
 
 ## 14. Team Contributions
 
-**Elizabeth Baker – [25844477]**
+### Elizabeth Baker – Vision and Perception
 
 Responsible for the vision and perception components of the project. Contributions included developing the camera calibration process, implementing intrinsic and hand-eye calibration, and developing the object detection and depth-based localisation methods. Additional work involved transforming camera observations into the robot base coordinate frame, estimating the cube's position and orientation, and contributing to the integration and testing of the vision-guided picking pipeline.
 
-**Marwa Rahmani – [25303292]**
+### Marwa Rahmani – Robot Modelling, Estimation and Control
 
 Responsible for the robot modelling, state estimation and feedback control components of the project. Contributions included developing the UR3 state-space model, performing controllability and observability analysis, implementing the Kalman observer for joint-state estimation, and developing the LQR feedback controller with computed-torque compensation. Additional work involved evaluating controller performance and contributing to the integration and testing of the complete picking system.
 
-**Joint Contributions**
+### Joint Contributions
 
 Both team members collaborated on integrating the vision, estimation and control components into the complete UR3 picking pipeline. Joint contributions included debugging, running the 130 experimental trials, analysing quantitative results, evaluating robustness under different operating conditions, preparing the GitHub documentation and producing the final demonstration and project report.
 
@@ -389,4 +413,4 @@ The project team reviewed and tested the implementation and checked the reported
 
 - OpenCV documentation – camera calibration, image processing and hand-eye calibration.
 - MuJoCo documentation – physics simulation and robot modelling.
-- University of Technology Sydney. (2026). 41014 Industrial Robotics: Subject learning materials and assessment resources.
+- University of Technology Sydney. (2026). *41014 Industrial Robotics: Subject learning materials and assessment resources.*

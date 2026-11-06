@@ -21,10 +21,3 @@ python -X utf8 run_experiments.py --quick
 ```
 
 For the full experiment, use `python -X utf8 run_experiments.py`. Generate figures with `python -X utf8 make_figures.py`. PDF report generation also requires `wkhtmltopdf`.
-
-## Before submission
-
-- Add the final five-minute demonstration video link to the detailed README.
-- Check that team contribution statements accurately reflect each person's work.
-- Review the generative AI declaration against UTS requirements.
-- Verify all repository files and run instructions before publishing.

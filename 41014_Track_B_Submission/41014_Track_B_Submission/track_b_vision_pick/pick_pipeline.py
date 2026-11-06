@@ -70,7 +70,7 @@ class PickRobot:
         self.t = 0.0
         self.nu_prev = np.zeros(N_JOINTS)
         self.yaw_meas = []                                        # (weight, yaw mod 90deg)
-        self.log = dict(t=[], q_true=[], qd_true=[], q_hat=[], qd_hat=[], q_ref=[], grip=[], phase=[])
+        self.log = dict(t=[], q_true=[], qd_true=[], qd_hat=[], q_hat=[], q_ref=[], grip=[], phase=[], q_std=[])
         self.events = []
         self.keep_log = cfg.get("keep_log", False)
 
@@ -117,11 +117,22 @@ class PickRobot:
             self.sim.step_control(tau, grip=grip)
             self.nu_prev = nu
             self.t += CTRL_DT
+
             if self.keep_log:
-                self.log["t"].append(self.t); self.log["q_true"].append(self.sim.truth_joints())
-                self.log["qd_true"].append(self.sim.truth_qdot()); self.log["qd_hat"].append(x_hat[N_JOINTS:].copy())
-                self.log["q_hat"].append(x_hat[:N_JOINTS].copy()); self.log["q_ref"].append(q_ref.copy())
-                self.log["grip"].append(grip if grip is not None else 0.0); self.log["phase"].append(phase)
+                self.log["t"].append(self.t)
+                self.log["q_true"].append(self.sim.truth_joints())
+                self.log["qd_true"].append(self.sim.truth_qdot())
+                self.log["qd_hat"].append(x_hat[N_JOINTS:].copy())
+                self.log["q_hat"].append(x_hat[:N_JOINTS].copy())
+                self.log["q_ref"].append(q_ref.copy())
+
+                # Record estimated joint-position uncertainty
+                q_variance = np.maximum(np.diag(self.ctl.Pm)[:N_JOINTS], 0.0)
+                q_std = np.sqrt(q_variance)
+                self.log["q_std"].append(q_std.copy())
+
+                self.log["grip"].append(grip if grip is not None else 0.0)
+                self.log["phase"].append(phase)
 
     def _start_segment(self):
         """Gain scheduling: re-linearise and re-design the LQG at the current estimate."""
